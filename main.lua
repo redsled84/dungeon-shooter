@@ -13,14 +13,16 @@ local SoundFX = require "soundfx"
 local tilesize = require "tilesize"
 local Viewport = require "viewport"
 local World = require "world"
+local LightWorld = require "lightworld"
 
 local stats = {
-	health = 110,
+	-- health = 110,
+	health = 120,
 	speed = 225,
 	ammo = 35,
 	rof = .35,
-	minAtkPwr = 25,
-	maxAtkPwr = 40
+	minAtkPwr = 75,
+	maxAtkPwr = 95
 }
 
 local defaultStats = {
@@ -32,6 +34,16 @@ local defaultStats = {
 	maxAtkPwr = stats.maxAtkPwr
 }
 
+lightWorld = LightWorld({
+    ambient = {45,45,45},
+    refractionStrength = 32.0,
+    reflectionVisibility = 0.75,
+    shadowBlur = 0.0
+})		
+
+
+local lights = {}
+shadowBodies = {}
 local depth = 0
 function loadGame()
 	if depth > 0 then
@@ -51,6 +63,33 @@ function loadGame()
 		Player:initialize(room, World:getWorld(), defaultStats)
 	else
 		Player:initialize(room, World:getWorld(), stats)
+	end
+
+	if #lights > 0 then
+		for i = #lightWorld.lights, 1, -1 do
+			table.remove(lightWorld.lights, i)
+		end
+	end
+	if #shadowBodies > 0 then
+		for i = #lightWorld.bodies, 1, -1 do
+			table.remove(lightWorld.bodies, i)
+		end
+	end
+
+	for i = 1, #Dungeon.rooms do
+		local room = Dungeon.rooms[i]
+		print((room.x+room.width/2)*tilesize, (room.y+room.height/2)*tilesize)
+		local light = lightWorld:newLight((room.x+room.width/2)*tilesize+20, (room.y+room.height/2)*tilesize+20, 255, 255, 255, 250)
+		light:setGlowStrength(0.1)
+		lights[#lights+1] = light
+	end
+
+	for i = 1, #Dungeon.drawList.background do
+		local t = Dungeon.drawList.background[i]
+		if t.num == 1 then
+			local rect = lightWorld:newRectangle(t.x*tilesize+20, t.y*tilesize+20, tilesize, tilesize)
+			shadowBodies[#shadowBodies+1] = rect
+		end
 	end
 	
 	-- 2.4
@@ -73,6 +112,10 @@ function love.load()
 
 	SoundFX:initialize()
 	loadGame()
+	--[[
+	print(inspect(shadowBodies))
+	]]
+	love.graphics.setBackgroundColor(0,0,0)
 end
 
 function love.update(dt)
@@ -88,28 +131,45 @@ function love.update(dt)
 		-- 	Viewport:roomConstraint(Player, room)
 		-- end
 		updateStats(dt)
-		Viewport:lockToPlayer(Player.x, Player.y)
 		Shake.update(dt)
+
+		Viewport:lockToPlayer(Player.x, Player.y)
+		-- lightMouse:setPosition(Player.x, Player.y)
+
 		-- print(Player.health, stats.health)
 	end
+
+    lightWorld:setTranslation(-Viewport.camera.x + love.graphics.getWidth()/2, -Viewport.camera.y + love.graphics.getHeight()/2)
+    lightWorld:update(dt)
+	-- lightMouse:setPosition(Player.x+Player.width/2, Player.y+Player.height/2, 1)
+	-- print(collectgarbage("count"))
 end
 
 function love.draw()
 	Viewport:attach()
-		Shake.preDraw()
+	lightWorld:draw(function()
+		-- Shake.preDraw()
 		--[[
 		]]
 		Dungeon:drawFloor()
 		-- MST:draw()
-		World:drawShadows()
+		-- World:drawShadows()
 		Dungeon:drawWalls()
 		Player:draw()
 		
 		World:draw()
 		--[[
 		]]
-		Shake.postDraw()
+		-- Shake.postDraw()
 		-- World:drawListNums(Dungeon:getDrawList())
+		--[[
+		love.graphics.setColor(255,255,255)
+		for i = 1, #shadowBodies do
+			local rect = shadowBodies[i]
+			love.graphics.polygon("fill", rect:getPoints())
+		end
+		]]
+	end)
 	Viewport:detach()
 	Hud:drawBackgroundOverlay()
 	Hud:drawPlayerStats()
@@ -123,7 +183,8 @@ function love.draw()
 end
 
 function love.keypressed(key)
-	if key == "f" and (Player.canContinue or Player:isDead()) then
+	-- if key == "f" and (Player.canContinue or Player:isDead()) then
+	if key == "f" then
 		if Player:isDead() then
 			depth = 0
 		end

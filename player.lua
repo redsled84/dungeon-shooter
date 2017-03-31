@@ -5,6 +5,7 @@ local Bullet = require "bullet"
 local Shake = require "shake"
 local SoundFX = require "soundfx"
 local Timer = require "timer"
+local Weapon = require "weapon"
 local World = require "world"
 local Player = {}
 
@@ -14,7 +15,6 @@ function Player:consts(health, ammo, speed, rof, minAtkPwr, maxAtkPwr)
 	self.maxAmmunition = ammo or 50
 	self.maxSpeed = speed
 	self.speed = speed or 105
-	self.rof = rof or .2
 	self.minAtkPwr = 15 or minAtkPwr
 	self.maxAtkPwr = 30 or maxAtkPwr
 end
@@ -22,6 +22,7 @@ end
 local image = love.graphics.newImage("img/tileset.png")
 function Player:initialize(room, world, stats)
 	self.kind = "player"
+	--[[
 	self.bullet = {
 		list = {},
 		width = 6,
@@ -30,12 +31,15 @@ function Player:initialize(room, world, stats)
 		minAtkPwr = self.minAtkPwr,
 		maxAtkPwr = self.maxAtkPwr
 	}
+	]]
+	self.weapon = Weapon.getWeapon("rifle", 25, 35)
+	self.bullet = self.weapon.bulletInfo
+	self.rof = self.weapon.rof
 
 	self:consts(
 		stats.health, 
 		stats.ammo, 
-		stats.speed,
-		stats.rof, 
+		stats.speed, 
 		stats.minAtkPwr, 
 		stats.maxAtkPwr
 	)
